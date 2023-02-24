@@ -1,0 +1,241 @@
+---
+title: "PS5"
+author: "Reina"
+date: "2023-02-19"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## 1. Load and check data
+
+```{r}
+library(tidyverse)
+gapminder <- read_delim('data/gapminder.csv')
+nrow(gapminder)
+ncol(gapminder)
+gapminder[sample(nrow(gapminder), size=3), ]
+```
+
+There are 13055 rows, 25 columns It looks fine.
+
+## 2. Descriptive statistics
+
+```{r}
+gapminder %>% 
+  summarize(niso3 = n_distinct(iso3))
+gapminder %>% 
+  summarize(niso2 = n_distinct(iso2))
+gapminder %>% 
+  summarize(nname = n_distinct(name))
+```
+
+There are 253 iso3, 249 iso2, and 250 names.
+
+```{R}
+countries <- unique(gapminder[, c("name", "iso2", "iso3")])
+```
+
+Namibia doesn't have a corresponding iso2.
+
+```{R}
+iso2names <- gapminder %>% 
+  group_by(iso2) %>% 
+  summarise(num = n_distinct(name))
+```
+
+a.  There are two blank iso2 lines.
+
+```{R}
+iso3names <- gapminder %>% 
+  group_by(name) %>% 
+  summarise(num = n_distinct(iso3))
+```
+
+b.  There are 4 blank lines. Four countries have alternative names: 1988, Cocos (Keeling) Islands, CCK/CHANISL 3974, Gabon, GAB/GBM 6261, Republic of Korea, KOR/KOS 8666, Netherlands, NLD/NLD CURACAO.
+
+```{R}
+min(gapminder$time, na.rm = TRUE)
+max(gapminder$time, na.rm = TRUE)
+```
+
+The minimum year is 1960 and the maximum year is 2019.
+
+## 3. CO2 emissions
+
+```{r}
+length(which(is.na(gapminder$co2)))
+length(which(is.na(gapminder$co2_PC)))
+
+missing_counts <- gapminder %>%
+  group_by(time) %>%
+  summarise(co2_missing = sum(is.na(gapminder$co2)),
+            co2_pc_missing = sum(is.na(gapminder$co2_PC)))
+
+most_missing_co2 <- missing_counts[which.max(missing_counts$co2_missing), "time"]
+most_missing_co2_pc <- missing_counts[which.max(missing_counts$co2_pc_missing), "time"]
+
+most_missing_co2
+most_missing_co2_pc
+
+```
+
+There are 2658 missing data for co2 and 2661 missing data for co2_PC 1960 has the most missing data for co2 and co2_PC.
+
+```{R}
+gapminder %>% 
+  filter(iso3 ==c( "USA", "CHN", "IND",  "AFG", "KOR", "IRL")) %>% 
+  ggplot()+
+  geom_line(aes(x=time, y = co2, col=iso3))+
+  geom_point(aes(x=time, y = co2, col=iso3))
+
+```
+
+CO2 emission in China increased very fast since 2000. USA's CO2 emission is also high.
+
+```{R}
+gapminder %>% 
+  filter(iso3 ==c( "USA", "CHN", "IND",  "AFG", "KOR", "IRL")) %>% 
+  ggplot()+
+  geom_line(aes(x=time, y = co2_PC, col=iso3))+
+  geom_point(aes(x=time, y = co2_PC, col=iso3))
+```
+
+USA has much more CO2 emission per capita than other countries. Korean's CO2 emission per capital kept growing to the second highest.
+
+```{R}
+ave_co2_pc_region_2016 <- gapminder %>%
+  filter(time == 2016) %>%
+  group_by(region) %>%
+  summarize(ave_co2_pc = mean(co2_PC, na.rm = TRUE))
+ave_co2_pc_region_2016
+
+
+ave_co2_pc_region_1960 <- gapminder %>%
+  filter(time == 1960) %>%
+  group_by(region) %>%
+  summarize(ave_co2_pc = mean(co2_PC, na.rm = TRUE))
+ave_co2_pc_region_1960
+```
+
+In 2016, Europe has the highest average CO2_PC. In 1960, Americas has the highest average CO2_PC.
+
+```{R}
+years <- c("1960", "2016")
+
+avg_emission <-gapminder %>%
+  filter(!is.na(co2_PC), !is.na(region)) %>%
+  filter(name != "NA") %>%
+  filter(time %in% years) %>%
+  group_by(time, region) %>%
+  summarize(avg_co2 = mean(co2_PC), .groups = "keep")
+
+ggplot(avg_emission, aes(x = region, y = avg_co2, fill = factor(time))) +
+  geom_bar(stat = "identity", position = position_dodge2(0))+
+  labs(x = "Region", y = "Average CO2 per capita", fill = "Year")
+
+
+```
+
+```{R}
+gapminder %>% 
+  filter(time == 2018) %>% 
+  group_by(region) %>% 
+  arrange(co2_pc) %>% 
+  mutate(rank = row_number()) %>% 
+  filter(rank <= 3 | rank > n() - 3) %>% 
+  ungroup()
+
+```
+
+## 4. GDP per capita
+
+```{R}
+
+gapminder_1960 <- gapminder[gapminder$time == 1960, ]
+ggplot(gapminder_1960, aes(x= GDP_PC, y = lifeExpectancy,
+                           size = totalPopulation, color = region)) +
+  geom_point(alpha = 0.7) +
+  scale_size_continuous(range = c(1, 10))+
+  xlab("GDP per capita")+
+  ylab("life expectancy")+
+  ggtitle("GDP per capita vs. life expectancy by country for 1960")
+  filter(!is.na(GDP_PC), !is.na(lifeExpectancy))
+  gapminder %>%
+```
+
+With higher GDP per capita, Europe tend to have a higher life expectancy, while Africa has a lower GDP per capita and lower life expectancy.
+
+```{R}
+gapminder_1960 <- gapminder[gapminder$time == 2019, ]
+ggplot(gapminder_1960, aes(x= GDP_PC, y = lifeExpectancy,
+                           size = totalPopulation, color = region)) +
+  geom_point(alpha = 0.7) +
+  scale_size_continuous(range = c(1, 10))+
+  xlab("GDP per capita")+
+  ylab("life expectancy")+
+  ggtitle("GDP per capita vs. life expectancy by country for 1960")
+  filter(!is.na(GDP_PC), !is.na(lifeExpectancy))
+  gapminder %>%
+```
+
+4-3. The world has developed through the last 60 years. Both life expectancy and GDP per capita increase. The lowest life expectancy increased from 30 to 45. The highest GDP per capita increased from 26000 to more than 90000.
+
+```{R}
+library(dplyr)
+
+gapminder_growth <- gapminder %>% 
+  group_by(region) %>% 
+  mutate(growth = (lifeExpectancy - lag(lifeExpectancy))/lag(lifeExpectancy)) %>% 
+  filter(time > 1960 & time < 2019) %>% 
+  summarise(avg_growth = mean(growth, na.rm = TRUE)) %>% 
+  arrange(desc(avg_growth))
+
+gapminder_growth
+```
+
+The results show that the average LE growth from 1960 to 2019 was highest in Africa, followed by Asia, Oceania, Americas, and the Europe, in that order. This suggests that countries in Asia and Africa experienced the greatest improvements in life expectancy over this period, while the Europe saw the least improvement.
+
+```{R}
+library(ggplot2)
+
+gapminder_gdp <- gapminder %>% 
+  filter(time %in% c(1960, 2019))
+
+
+ggplot(gapminder_gdp, aes(x = GDP_PC, fill = factor(time))) +
+  geom_histogram(position = "dodge", alpha = 0.5, bins = 20) +
+  scale_fill_manual(values = c("blue", "red"), name = "Year") +
+  labs(title = "Histogram of GDP per Capita (1960 vs. 2019)", x = "GDP per Capita", y = "Frequency")
+
+
+```
+
+Distribution of GDP per capita was right-skewed in both years, with a greater concentration of countries having lower GDP per capita in 1960. In 2019, there was a shift towards higher GDP per capita, with more countries having GDP per capita above \$20,000.
+
+```{R}
+# Rank of US in 1960
+index <- (!is.na(gapminder[gapminder$time == 1960, ]$lifeExpectancy)) & (gapminder[gapminder$time == 1960, ]$name!="")
+gapminder_1960 <- gapminder[gapminder$time == 1960, ]
+rank_1960 <- rank(-gapminder_1960[index, ]$lifeExpectancy, ties.method = "min")[which(gapminder_1960[index, ]$name == "United States of America" & index)]
+
+# Rank of US in 2019
+index <- (!is.na(gapminder[gapminder$time == 2019, ]$lifeExpectancy)) & (gapminder[gapminder$time == 2019, ]$name!="")
+gapminder_2019 <- gapminder[gapminder$time == 2019, ]
+rank_2019 <- rank(-gapminder_2019[index, ]$lifeExpectancy, ties.method = "min")[which(gapminder_2019[index, ]$name == "United States of America" & index)]
+
+cat("US ranking in life expectancy (1960):", rank_1960, "\n")
+cat("US ranking in life expectancy (2019):", rank_2019, "\n")
+```
+
+```{R}
+rank_rel_1960 <- rank_1960/nrow(gapminder[gapminder$time == 1960 & !is.na(gapminder$lifeExpectancy) & gapminder$name!="", ])
+rank_rel_2019 <- rank_2019/nrow(gapminder[gapminder$time == 2019 & !is.na(gapminder$lifeExpectancy) & gapminder$name!="", ])
+
+
+cat("Relative rank of US in 1960:", round(rank_rel_1960, 4), "\n")
+
+cat("Relative rank of US in 2019:", round(rank_rel_2019, 4), "\n")
+```
+
+The relative rank of the US in terms of life expectancy was 0.0904 in 1960 and 0.2347 in 2019. This suggests that while the US has fallen in its overall ranking, its relative rank has improved over time due to the increased number of countries in the dataset.
